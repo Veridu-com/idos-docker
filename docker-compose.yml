@@ -1,0 +1,511 @@
+version: '2'
+services:
+  api-nginx-php-fpm:
+    container_name: api-nginx-php-fpm
+    image: idos/nginx-php-fpm:latest
+    ports:
+      - "127.0.0.1:8000:80"
+    depends_on:
+      - api-gearman
+      - api-postgresql
+      - api-redis
+    links:
+      - api-gearman
+      - api-postgresql
+      - api-redis
+    volumes:
+      - ./idos-api:/app
+      - ./idos-api-conf/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-api-conf/init.sh:/init.sh:ro
+      - ./idos-api-conf/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+      - ./idos-api-conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./idos-api-conf/php-fpm.conf:/usr/local/etc/php-fpm.conf:ro
+      - ./idos-api-conf/pool.conf:/usr/local/etc/php-fpm.d/pool.conf:ro
+      - ./idos-api-conf/process.conf:/etc/supervisor/conf.d/process.conf:ro
+      - ./idos-api-conf/server.conf:/etc/nginx/conf.d/server.conf:ro
+      - ./idos-api-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      IDOS_CACHE_DRIVER: 'redis'
+      IDOS_CACHE_SERVERS: '[["172.16.243.7", 6379]]'
+      IDOS_DEBUG: 1
+      IDOS_FS_ADAPTER: 'local'
+      IDOS_FS_CACHED: 0
+      IDOS_FS_PATH: '/tmp'
+      IDOS_GEARMAN_SERVERS: '172.16.243.3'
+      IDOS_LOG_FILE: /app/log/api.log
+      IDOS_OPTIMUS_INVERSE: 1885413229
+      IDOS_OPTIMUS_PRIME: 2123809381
+      IDOS_OPTIMUS_RANDOM: 146808189
+      IDOS_SECURE_KEY: '5mCUqqKytt7x7y9BnmxaKMYLTLsgQZJt'
+      IDOS_SQL_DRIVER: pgsql
+      IDOS_SQL_HOST: 172.16.243.6
+      IDOS_SQL_NAME: idos-api
+      IDOS_SQL_PASS: 'UpHW4wKjb8k2dxs3'
+      IDOS_SQL_PORT: 5432
+      IDOS_SQL_USER: idos-api
+      IDOS_TRUSTED_PROXIES: 172.16.242.1
+      IDOS_VERSION: '1.0'
+    networks:
+      public-ipv4:
+        ipv4_address: 172.16.242.10
+      api-ipv4:
+        ipv4_address: 172.16.243.2
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  api-gearman:
+    container_name: api-gearman
+    image: idos/gearman:latest
+    volumes:
+      - ./idos-gearman-conf/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-gearman-conf/init.sh:/init.sh:ro
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      LOG_FILE: /var/log/gearman.log
+      MEMCACHE_HOST: ''
+      NUM_RETRIES: 3
+      NUM_THREADS: 4
+      NUM_WAKEUP: 1
+    networks:
+      api-ipv4:
+        ipv4_address: 172.16.243.3
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  manager:
+    container_name: manager
+    image: idos/php-daemon:latest
+    depends_on:
+      - api-gearman
+      - queue-nginx-php-fpm
+      - morpheus
+    links:
+      - api-gearman
+      - queue-nginx-php-fpm
+      - morpheus
+    volumes:
+      - ./idos-manager:/app
+      - ./idos-manager-aws/conf.d/daemon.sh:/daemon.sh:ro
+      - ./idos-manager-aws/conf.d/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-manager-aws/conf.d/init.sh:/init.sh:ro
+      - ./idos-manager-aws/conf.d/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+      - ./idos-manager-aws/conf.d/process.conf:/etc/supervisor/conf.d/process.conf:ro
+      - ./idos-manager-aws/conf.d/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+      - ./idos-manager-aws/conf.d/wd-elb.sh:/wd-elb.sh:ro
+      - ./idos-manager-aws/conf.d/wd-health.sh:/wd-health.sh:ro
+      - ./idos-watchdog:/watchdog
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      IDOS_DAEMON_COUNT: 1
+      IDOS_DAEMON_HEALTH_CHECK: 0
+      IDOS_DAEMON_PARAMS: 'manager'
+      IDOS_DEBUG: 1
+      IDOS_GEARMAN_SERVERS: 172.16.243.3
+      IDOS_LOG_FILE: /app/log/manager.log
+      IDOS_VERSION: '1.0'
+      WATCHDOG_DISABLED: 1
+      WATCHDOG_ELB_COUNT: 0
+      WATCHDOG_HEALTH_COUNT: 0
+    networks:
+      public-ipv4:
+        ipv4_address: 172.16.242.11
+      api-ipv4:
+        ipv4_address: 172.16.243.4
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  metrics:
+    container_name: metrics
+    image: idos/php-daemon:latest
+    depends_on:
+      - api-gearman
+      - api-postgresql
+    links:
+      - api-gearman
+      - api-postgresql
+    volumes:
+      - ./idos-metrics:/app
+      - ./idos-metrics-aws/conf.d/daemon.sh:/daemon.sh:ro
+      - ./idos-metrics-aws/conf.d/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-metrics-aws/conf.d/init.sh:/init.sh:ro
+      - ./idos-metrics-aws/conf.d/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+      - ./idos-metrics-aws/conf.d/process.conf:/etc/supervisor/conf.d/process.conf:ro
+      - ./idos-metrics-aws/conf.d/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+      - ./idos-metrics-aws/conf.d/wd-elb.sh:/wd-elb.sh:ro
+      - ./idos-metrics-aws/conf.d/wd-health.sh:/wd-health.sh:ro
+      - ./idos-watchdog:/watchdog
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      IDOS_DAEMON_COUNT: 1
+      IDOS_DAEMON_HEALTH_CHECK: 0
+      IDOS_DAEMON_PARAMS: 'metrics'
+      IDOS_DEBUG: 1
+      IDOS_GEARMAN_SERVERS: 172.16.243.3
+      IDOS_LOG_FILE: /app/log/metrics.log
+      IDOS_SQL_DRIVER: pgsql
+      IDOS_SQL_HOST: 172.16.243.6
+      IDOS_SQL_NAME: idos-api
+      IDOS_SQL_PASS: 'UpHW4wKjb8k2dxs3'
+      IDOS_SQL_PORT: 5432
+      IDOS_SQL_USER: idos-api
+      IDOS_VERSION: '1.0'
+      WATCHDOG_DISABLED: 1
+      WATCHDOG_ELB_COUNT: 0
+      WATCHDOG_HEALTH_COUNT: 0
+    networks:
+      api-ipv4:
+        ipv4_address: 172.16.243.5
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  api-postgresql:
+    container_name: api-postgresql
+    image: postgres:9.6
+    environment:
+      POSTGRES_PASSWORD: 'UpHW4wKjb8k2dxs3'
+      POSTGRES_USER: idos-api
+    networks:
+      api-ipv4:
+        ipv4_address: 172.16.243.6
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  api-redis:
+    container_name: api-redis
+    image: redis:3.2
+    networks:
+      api-ipv4:
+        ipv4_address: 172.16.243.7
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  queue-nginx-php-fpm:
+    container_name: queue-nginx-php-fpm
+    image: idos/nginx-php-fpm:latest
+    depends_on:
+      - queue-gearman
+    links:
+      - queue-gearman
+    volumes:
+      - ./idos-queue:/app
+      - ./idos-queue-aws/conf.d/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-queue-aws/conf.d/init.sh:/init.sh:ro
+      - ./idos-queue-aws/conf.d/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+      - ./idos-queue-aws/conf.d/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./idos-queue-aws/conf.d/php-fpm.conf:/usr/local/etc/php-fpm.conf:ro
+      - ./idos-queue-aws/conf.d/pool.conf:/usr/local/etc/php-fpm.d/pool.conf:ro
+      - ./idos-queue-aws/conf.d/process.conf:/etc/supervisor/conf.d/process.conf:ro
+      - ./idos-queue-aws/conf.d/server.conf:/etc/nginx/conf.d/server.conf:ro
+      - ./idos-queue-aws/conf.d/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      IDOS_DEBUG: 1
+      IDOS_GEARMAN_SERVERS: '172.16.244.3'
+      IDOS_LOG_FILE: /app/log/queue.log
+      IDOS_TRUSTED_PROXIES: 172.16.242.1
+      IDOS_VERSION: '1.0'
+    networks:
+      public-ipv4:
+        ipv4_address: 172.16.242.12
+      queue-ipv4:
+        ipv4_address: 172.16.244.2
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  queue-gearman:
+    container_name: queue-gearman
+    image: idos/gearman:latest
+    volumes:
+      - ./idos-gearman-conf/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-gearman-conf/init.sh:/init.sh:ro
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      LOG_FILE: /var/log/gearman.log
+      MEMCACHE_HOST: ''
+      NUM_RETRIES: 3
+      NUM_THREADS: 4
+      NUM_WAKEUP: 1
+    networks:
+      queue-ipv4:
+        ipv4_address: 172.16.244.3
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  scraper:
+    container_name: scraper
+    image: idos/php-daemon:latest
+    depends_on:
+      - queue-gearman
+    links:
+      - queue-gearman
+    volumes:
+      - ./idos-scrape-handler:/app
+      - ./idos-scrape-handler-conf/daemon.sh:/daemon.sh:ro
+      - ./idos-scrape-handler-conf/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-scrape-handler-conf/init.sh:/init.sh:ro
+      - ./idos-scrape-handler-conf/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+      - ./idos-scrape-handler-conf/process.conf:/etc/supervisor/conf.d/process.conf:ro
+      - ./idos-scrape-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+      - ./idos-scrape-handler-conf/wd-elb.sh:/wd-elb.sh:ro
+      - ./idos-scrape-handler-conf/wd-health.sh:/wd-health.sh:ro
+      - ./idos-watchdog:/watchdog
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      IDOS_API_URL: 'http://172.16.242.10/1.0'
+      IDOS_DAEMON_COUNT: 1
+      IDOS_DAEMON_HEALTH_CHECK: 0
+      IDOS_DAEMON_PARAMS: 'eab842a8a9369fe89859427e8350fccd 1ab44fa6767904d426d9848514c93be5 scrape'
+      IDOS_DEBUG: 1
+      IDOS_GEARMAN_SERVERS: 172.16.244.3
+      IDOS_LOG_FILE: /app/log/scrape.log
+      IDOS_VERSION: '1.0'
+      WATCHDOG_DISABLED: 1
+      WATCHDOG_ELB_COUNT: 0
+      WATCHDOG_HEALTH_COUNT: 0
+    networks:
+      queue-ipv4:
+        ipv4_address: 172.16.244.4
+      public-ipv4:
+        ipv4_address: 172.16.242.14
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  features:
+    container_name: features
+    image: idos/php-daemon:latest
+    depends_on:
+      - queue-gearman
+      - features-postgresql
+    links:
+      - queue-gearman
+      - features-postgresql
+    volumes:
+      - ./idos-feature-handler:/app
+      - ./idos-feature-handler-conf/daemon.sh:/daemon.sh:ro
+      - ./idos-feature-handler-conf/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-feature-handler-conf/init.sh:/init.sh:ro
+      - ./idos-feature-handler-conf/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+      - ./idos-feature-handler-conf/process.conf:/etc/supervisor/conf.d/process.conf:ro
+      - ./idos-feature-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+      - ./idos-feature-handler-conf/wd-elb.sh:/wd-elb.sh:ro
+      - ./idos-feature-handler-conf/wd-health.sh:/wd-health.sh:ro
+      - ./idos-watchdog:/watchdog
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      IDOS_API_URL: 'http://172.16.242.10/1.0'
+      IDOS_DAEMON_COUNT: 1
+      IDOS_DAEMON_HEALTH_CHECK: 0
+      IDOS_DAEMON_PARAMS: '36901fee71b4d7045c024e32aae62cb8 bded344cbef1ea5ff52a2abb52c89e92 feature'
+      IDOS_DEBUG: 1
+      IDOS_GEARMAN_SERVERS: 172.16.244.3
+      IDOS_LOG_FILE: /app/log/feature.log
+      IDOS_SQL_DRIVER: pgsql
+      IDOS_SQL_HOST: 172.16.245.3
+      IDOS_SQL_NAME: idos-feature
+      IDOS_SQL_PASS: 'h8gQeLMZrK9eEWSh'
+      IDOS_SQL_PORT: 5432
+      IDOS_SQL_USER: idos-feature
+      IDOS_VERSION: '1.0'
+      WATCHDOG_DISABLED: 1
+      WATCHDOG_ELB_COUNT: 0
+      WATCHDOG_HEALTH_COUNT: 0
+    networks:
+      queue-ipv4:
+        ipv4_address: 172.16.244.5
+      features-ipv4:
+        ipv4_address: 172.16.245.2
+      public-ipv4:
+        ipv4_address: 172.16.242.15
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  features-postgresql:
+    container_name: features-postgresql
+    image: postgres:9.6
+    environment:
+      POSTGRES_PASSWORD: 'h8gQeLMZrK9eEWSh'
+      POSTGRES_USER: idos-feature
+    networks:
+      features-ipv4:
+        ipv4_address: 172.16.245.3
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  email:
+    container_name: email
+    image: idos/php-daemon:latest
+    depends_on:
+      - queue-gearman
+    links:
+      - queue-gearman
+    volumes:
+      - ./idos-email-handler:/app
+      - ./idos-email-handler-conf/daemon.sh:/daemon.sh:ro
+      - ./idos-email-handler-conf/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-email-handler-conf/init.sh:/init.sh:ro
+      - ./idos-email-handler-conf/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+      - ./idos-email-handler-conf/process.conf:/etc/supervisor/conf.d/process.conf:ro
+      - ./idos-email-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+      - ./idos-email-handler-conf/wd-elb.sh:/wd-elb.sh:ro
+      - ./idos-email-handler-conf/wd-health.sh:/wd-health.sh:ro
+      - ./idos-watchdog:/watchdog
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      IDOS_DAEMON_COUNT: 1
+      IDOS_DAEMON_HEALTH_CHECK: 0
+      IDOS_DAEMON_PARAMS: 'email'
+      IDOS_DEBUG: 1
+      IDOS_EMAIL_ENCRYPTION: tls
+      IDOS_EMAIL_HOST: '***REMOVED***'
+      IDOS_EMAIL_PASS: '***REMOVED***'
+      IDOS_EMAIL_PORT: 587
+      IDOS_EMAIL_USER: '***REMOVED***'
+      IDOS_GEARMAN_SERVERS: 172.16.244.3
+      IDOS_LOG_FILE: /app/log/email.log
+      IDOS_VERSION: '1.0'
+      WATCHDOG_DISABLED: 1
+      WATCHDOG_ELB_COUNT: 0
+      WATCHDOG_HEALTH_COUNT: 0
+    networks:
+      queue-ipv4:
+        ipv4_address: 172.16.244.6
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  cra:
+    container_name: cra
+    image: idos/php-daemon:latest
+    depends_on:
+      - queue-gearman
+    links:
+      - queue-gearman
+    volumes:
+      - ./idos-cra-handler:/app
+      - ./idos-cra-handler-conf/daemon.sh:/daemon.sh:ro
+      - ./idos-cra-handler-conf/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-cra-handler-conf/init.sh:/init.sh:ro
+      - ./idos-cra-handler-conf/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+      - ./idos-cra-handler-conf/process.conf:/etc/supervisor/conf.d/process.conf:ro
+      - ./idos-cra-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+      - ./idos-cra-handler-conf/wd-elb.sh:/wd-elb.sh:ro
+      - ./idos-cra-handler-conf/wd-health.sh:/wd-health.sh:ro
+      - ./idos-watchdog:/watchdog
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      IDOS_API_URL: 'http://172.16.242.10/1.0'
+      IDOS_DAEMON_COUNT: 1
+      IDOS_DAEMON_HEALTH_CHECK: 0
+      IDOS_DAEMON_PARAMS: '07e39b8686a34adef8ec913e074d6274 e18db301f4a6d99985f8ced05fa41ae7 cra'
+      IDOS_DEBUG: 1
+      IDOS_GEARMAN_SERVERS: 172.16.244.3
+      IDOS_LOG_FILE: /app/log/cra.log
+      IDOS_VERSION: '1.0'
+      WATCHDOG_DISABLED: 1
+      WATCHDOG_ELB_COUNT: 0
+      WATCHDOG_HEALTH_COUNT: 0
+    networks:
+      queue-ipv4:
+        ipv4_address: 172.16.244.7
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  sms:
+    container_name: sms
+    image: idos/php-daemon:latest
+    depends_on:
+      - queue-gearman
+    links:
+      - queue-gearman
+    volumes:
+      - ./idos-sms-handler:/app
+      - ./idos-sms-handler-conf/daemon.sh:/daemon.sh:ro
+      - ./idos-sms-handler-conf/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-sms-handler-conf/init.sh:/init.sh:ro
+      - ./idos-sms-handler-conf/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+      - ./idos-sms-handler-conf/process.conf:/etc/supervisor/conf.d/process.conf:ro
+      - ./idos-sms-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+      - ./idos-sms-handler-conf/wd-elb.sh:/wd-elb.sh:ro
+      - ./idos-sms-handler-conf/wd-health.sh:/wd-health.sh:ro
+      - ./idos-watchdog:/watchdog
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      IDOS_DAEMON_COUNT: 1
+      IDOS_DAEMON_HEALTH_CHECK: 0
+      IDOS_DAEMON_PARAMS: 'sms'
+      IDOS_DEBUG: 1
+      IDOS_GEARMAN_SERVERS: 172.16.244.3
+      IDOS_LOG_FILE: /app/log/sms.log
+      IDOS_VERSION: '1.0'
+      WATCHDOG_DISABLED: 1
+      WATCHDOG_ELB_COUNT: 0
+      WATCHDOG_HEALTH_COUNT: 0
+    networks:
+      queue-ipv4:
+        ipv4_address: 172.16.244.8
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+  morpheus:
+    container_name: morpheus
+    image: idos/spring:latest
+    depends_on:
+      - queue-gearman
+    links:
+      - queue-gearman
+    volumes:
+      - ./idos-morpheus:/app
+      - ./idos-morpheus-conf/healthcheck.sh:/healthcheck.sh:ro
+      - ./idos-morpheus-conf/init.sh:/init.sh:ro
+      - ./idos-morpheus-conf/logrotate.conf:/etc/logrotate.d/logrotate.conf:ro
+    environment:
+      ENVIRONMENT_EB: 'dev'
+      GOOGLE_APPLICATION_CREDENTIALS: '/app/gcv-credentials.json'
+      JAVA_MAX_METASPACE: ''
+      JAVA_METASPACE: ''
+      JAVA_XMS: ''
+      JAVA_XMX: ''
+      SPRING_APPLICATION_JSON: '{"server":{"address":"0.0.0.0","port":80},"logging":{"file":"morpheus-spring.log"},"morpheus":{"http":{"user":"***REMOVED***","password":"***REMOVED***"},"handlerPrivateKey":"81197557e9117dfd6f16cb72a2710830","handlerPublicKey":"b16c931c061e14af275bd2c86d3cf48d","useSSL":false,"IDOS_DEBUG":1,"IDOS_API_URL":"http://172.16.242.10/1.0"},"aws":{"ACCESS_KEY":"***REMOVED***","SECRET":"***REMOVED***"}}'
+    networks:
+      public-ipv4:
+        ipv4_address: 172.16.242.13
+    dns:
+      - 208.67.220.220
+      - 208.67.222.222
+networks:
+  public-ipv4:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.242.0/24
+          gateway: 172.16.242.1
+  api-ipv4:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.243.0/24
+          gateway: 172.16.243.1
+  queue-ipv4:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.244.0/24
+          gateway: 172.16.244.1
+  features-ipv4:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.245.0/24
+          gateway: 172.16.245.1
