@@ -94,7 +94,7 @@ services:
       - ./idos-manager-aws/conf.d/supervisord.conf:/etc/supervisor/supervisord.conf:ro
       - ./idos-manager-aws/conf.d/wd-elb.sh:/wd-elb.sh:ro
       - ./idos-manager-aws/conf.d/wd-health.sh:/wd-health.sh:ro
-      - ./idos-watchdog:/watchdog
+      - ./idos-watchdog-aws:/watchdog
     environment:
       ENVIRONMENT_EB: 'dev'
       IDOS_DAEMON_COUNT: 1
@@ -134,7 +134,7 @@ services:
       - ./idos-metrics-aws/conf.d/supervisord.conf:/etc/supervisor/supervisord.conf:ro
       - ./idos-metrics-aws/conf.d/wd-elb.sh:/wd-elb.sh:ro
       - ./idos-metrics-aws/conf.d/wd-health.sh:/wd-health.sh:ro
-      - ./idos-watchdog:/watchdog
+      - ./idos-watchdog-aws:/watchdog
     environment:
       ENVIRONMENT_EB: 'dev'
       IDOS_DAEMON_COUNT: 1
@@ -249,7 +249,7 @@ services:
       - ./idos-scrape-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
       - ./idos-scrape-handler-conf/wd-elb.sh:/wd-elb.sh:ro
       - ./idos-scrape-handler-conf/wd-health.sh:/wd-health.sh:ro
-      - ./idos-watchdog:/watchdog
+      - ./idos-watchdog-aws:/watchdog
     environment:
       ENVIRONMENT_EB: 'dev'
       IDOS_API_URL: 'http://172.16.242.10/1.0'
@@ -290,7 +290,7 @@ services:
       - ./idos-feature-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
       - ./idos-feature-handler-conf/wd-elb.sh:/wd-elb.sh:ro
       - ./idos-feature-handler-conf/wd-health.sh:/wd-health.sh:ro
-      - ./idos-watchdog:/watchdog
+      - ./idos-watchdog-aws:/watchdog
     environment:
       ENVIRONMENT_EB: 'dev'
       IDOS_API_URL: 'http://172.16.242.10/1.0'
@@ -349,7 +349,7 @@ services:
       - ./idos-email-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
       - ./idos-email-handler-conf/wd-elb.sh:/wd-elb.sh:ro
       - ./idos-email-handler-conf/wd-health.sh:/wd-health.sh:ro
-      - ./idos-watchdog:/watchdog
+      - ./idos-watchdog-aws:/watchdog
     environment:
       ENVIRONMENT_EB: 'dev'
       IDOS_DAEMON_COUNT: 1
@@ -390,7 +390,7 @@ services:
       - ./idos-cra-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
       - ./idos-cra-handler-conf/wd-elb.sh:/wd-elb.sh:ro
       - ./idos-cra-handler-conf/wd-health.sh:/wd-health.sh:ro
-      - ./idos-watchdog:/watchdog
+      - ./idos-watchdog-aws:/watchdog
     environment:
       ENVIRONMENT_EB: 'dev'
       IDOS_API_URL: 'http://172.16.242.10/1.0'
@@ -427,7 +427,7 @@ services:
       - ./idos-sms-handler-conf/supervisord.conf:/etc/supervisor/supervisord.conf:ro
       - ./idos-sms-handler-conf/wd-elb.sh:/wd-elb.sh:ro
       - ./idos-sms-handler-conf/wd-health.sh:/wd-health.sh:ro
-      - ./idos-watchdog:/watchdog
+      - ./idos-watchdog-aws:/watchdog
     environment:
       ENVIRONMENT_EB: 'dev'
       IDOS_DAEMON_COUNT: 1

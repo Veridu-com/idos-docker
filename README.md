@@ -16,7 +16,7 @@ This project creates a complete infrastructure to run idOS on docker containers.
 10. Clone [idos-queue](https://github.com/veridu/idos-queue)
 11. Clone [idos-scrape-handler](https://github.com/veridu/idos-scrape-handler)
 12. Clone [idos-sms-handler](https://github.com/veridu/idos-sms-handler)
-13. Clone [idos-watchdog](https://github.com/veridu/idos-watchdog)
+13. Clone [idos-watchdog-aws](https://github.com/veridu/idos-watchdog-aws)
 14. Build [containers/ubuntu](containers/ubuntu)
 15. Build [containers/gearman](containers/gearman)
 16. Build [containers/nginx-php-fpm](containers/nginx-php-fpm)
